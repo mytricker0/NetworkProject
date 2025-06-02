@@ -1,0 +1,29 @@
+services:
+  tor:
+    build: ./tor
+    container_name: tor
+    restart: unless-stopped
+    volumes:
+      - .torrc:/etc/tor/torrc:ro  # Mount torrc as read-only for security
+      # - tor-data:/var/lib/tor
+    expose:
+      - "9050"  # Expose only the SOCKS proxy port 
+
+      
+    security_opt:
+      - no-new-privileges:true
+
+   
+
+  puppeteer_tor:
+    build: ./puppeteer_tor
+    container_name: puppeteer_tor
+    volumes:
+      - ./puppeteer_tor:/app
+      # - tor-data:/var/lib/tor
+
+    env_file:
+      - dev.env
+  
+        
+
