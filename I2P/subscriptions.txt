@@ -1,4 +1,0 @@
-http://inr.i2p/export/alive-hosts.txt
-http://notbob.i2p/cgi-bin/notbob.cgi
-http://stats.i2p/cgi-bin/newhosts.txt
-http://skank.i2p/hosts.txt
