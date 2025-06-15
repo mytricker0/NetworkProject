@@ -104,10 +104,11 @@ function getDescriptorIP(fingerprint) {
 
 function displayCircuit() {
   return new Promise((resolve, reject) => {
-    controller.getInfo('circuit-status', (err, info) => {
+    controller.getInfo('circuit-status', async (err, info) => {
       if (err) return reject(err);
       const circuitStatus = info.data;
-      logInfo(`DisplayCircuit: Circuit status received. ${circuitStatus} bytes.`);
+      logInfo(`DisplayCircuit: Circuit status received. ${circuitStatus.length} bytes.`);
+
       const lines = circuitStatus.split('\n');
       let circuitLine = null;
       for (const line of lines) {
@@ -116,16 +117,33 @@ function displayCircuit() {
           break;
         }
       }
+
       if (!circuitLine) {
-        logInfo("DisplayCircuit: No built circuit found.");
+        logInfo('DisplayCircuit: No built circuit found.');
         return resolve();
       }
-      let pathPart = circuitLine.split("BUILT")[1].trim();
-      if (pathPart.includes("BUILD_FLAGS")) {
-        pathPart = pathPart.split("BUILD_FLAGS")[0].trim();
+
+      let pathPart = circuitLine.split('BUILT')[1].trim();
+      if (pathPart.includes('BUILD_FLAGS')) {
+        pathPart = pathPart.split('BUILD_FLAGS')[0].trim();
       }
-      const hops = pathPart.split(",");
-      const fingerprints = hops.map(hop => hop.split("~")[0].replace("$", "").trim());
+
+      const hops = pathPart.split(',');
+      const fingerprints = hops.map(hop => hop.split('~')[0].replace('$', '').trim());
+
+      for (const [idx, fp] of fingerprints.entries()) {
+        try {
+          const ip = await getDescriptorIP(fp);
+          if (ip) {
+            logInfo(`Hop ${idx + 1}: ${fp} (${ip})`);
+          } else {
+            logInfo(`Hop ${idx + 1}: ${fp} (IP unknown)`);
+          }
+        } catch (e) {
+          logError('Failed to resolve fingerprint ' + fp + ': ' + e.message);
+        }
+      }
+
       resolve();
     });
   });
