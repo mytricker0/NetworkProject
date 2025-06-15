@@ -1,17 +1,20 @@
 services:
   tor:
-    build: ./tor
+    image: dperson/torproxy
     container_name: tor
     restart: unless-stopped
-    volumes:
-      - .torrc:/etc/tor/torrc:ro  # Mount torrc as read-only for security
-      # - tor-data:/var/lib/tor
-    expose:
-      - "9050"  # Expose only the SOCKS proxy port 
+    # expose:
+    #   - "9050"  # SOCKS5 proxy
+    #   - "9051"  # Control port
+    ports:
+      - "9050:9050"  # SOCKS5 proxy
+      - "9051:9051"  # Control port
+    command: -p "ergqewrgqerwgqwergwerg3er"
+    environment:
+      - TZ=Europe/Brussels
 
-      
-    security_opt:
-      - no-new-privileges:true
+    networks:
+      - tornet
 
    
 
@@ -21,9 +24,18 @@ services:
     volumes:
       - ./puppeteer_tor:/app
       # - tor-data:/var/lib/tor
-
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    # networks:
+    #   - tornet
     env_file:
-      - dev.env
-  
-        
+      - .env
+    environment:
+      - DISPLAY=${DISPLAY}
+    network_mode: host  # necessary to use host X11 socket
+    privileged: true    # needed for Chromium sandboxing
+   
+
+networks:
+  tornet:
+    driver: bridge
 

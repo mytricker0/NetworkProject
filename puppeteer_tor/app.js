@@ -14,15 +14,7 @@ dotenv.config();
 
 
 
-// ─── Pull environment variables ────────────────────────────────────────────────
-const {
-  TOR_HOST = 'tor',
-  TOR_PORT = '9050',
-  TOR_CONTROL_PORT = '9051',
-  TOR_PASSWORD = '',               // only used if you do ControlPort commands
-  TARGET_URL = 'https://check.torproject.org/',
-  HEADLESS = 'true',
-} = process.env;
+
 
 // ─── Logging helpers ───────────────────────────────────────────────────────────
 function logInfo(msg) {
@@ -49,7 +41,8 @@ function wait(ms, signal) {
 }
 
 async function isTorReady() {
-  const proxy = `socks5h://tor:${process.env.TOR_PORT}`;
+  const proxy = `socks5h://${process.env.TOR_HOST}:${process.env.TOR_PORT}`;
+
   const agent = new SocksProxyAgent(proxy);
   while (true) {
     try {
@@ -71,7 +64,7 @@ async function isTorReady() {
 }
 
 const controller = new TorControl({
-  host: 'tor',
+  host: process.env.TOR_HOST,
   port: `${process.env.TOR_CONTROL_PORT}`,
   password: `${process.env.TOR_PASSWORD}`
 });
@@ -166,11 +159,10 @@ async function runPuppeteer() {
 
   try {
     browser = await puppeteer.launch({
-      headless: HEADLESS === 'true',
+      headless: process.env.HEADLESS === 'true',
       executablePath: '/usr/bin/chromium',   // ensure Dockerfile installed chromium
       args: [
-        `--proxy-server=socks5h://${TOR_HOST}:${TOR_PORT}`,
-        '--headless=new',                    // Chrome headless 
+        `--proxy-server=socks5://${process.env.TOR_HOST}:${process.env.TOR_PORT}`,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',           // avoid /dev/shm issues
@@ -203,6 +195,7 @@ async function runPuppeteer() {
     } else {
       logWarning('⚠︎ Tor check did not confirm usage. Traffic may not be routed through Tor.');
     }
+    await page.goto("https://www.google.com", { waitUntil: 'networkidle2' });
 
     // ─── Now navigate to your real target ─────────────────────────────────────
     
@@ -226,6 +219,9 @@ async function runPuppeteer() {
 // ─── Main entrypoint: wait for Tor, then launch Puppeteer ─────────────────────
 (async () => {
   try {
+    // log the process.env
+
+    logInfo(JSON.stringify(process.env, null, 2));
     // wait(10000); // Initial 1s delay before starting
     await waitForTor();      // Block up to 60s for Tor to be ready
     await renewTorCircuit(); // (Optional) rotate circuit once Tor’s ready
