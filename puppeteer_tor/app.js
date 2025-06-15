@@ -166,7 +166,7 @@ async function waitForTor(interval = 5000) {
 }
 
 // ─── Puppeteer routine, only invoked after Tor is confirmed ready ─────────────
-async function runPuppeteer() {
+async function runTorPuppeteer() {
   puppeteer.use(StealthPlugin());
 
   const userAgent = randomUseragent.getRandom((ua) => parseFloat(ua.browserVersion) >= 100);
@@ -234,6 +234,94 @@ async function runPuppeteer() {
   }
 }
 
+
+
+async function runI2pPuppeteer() {
+  puppeteer.use(StealthPlugin());
+
+  const userAgent = randomUseragent.getRandom((ua) => parseFloat(ua.browserVersion) >= 100);
+  logInfo(`Launching browser with User-Agent: ${userAgent}`);
+
+  let browser = null;
+  let chromeTmpDataDir = null;
+
+  try {
+    browser = await puppeteer.launch({
+      headless: process.env.HEADLESS === 'true',
+      executablePath: '/usr/bin/chromium',   // ensure Dockerfile installed chromium
+      args: [
+        `--proxy-server=http://${process.env.I2P_HOST}:${process.env.I2P_PORT}`,
+        '--no-sandbox',
+        '--host-resolver-rules=MAP *.i2p ~NOTFOUND, EXCLUDE localhost',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',           // avoid /dev/shm issues
+        '--disable-gpu',
+        '--disable-features=WebRTC',
+        '--disable-extensions',
+        '--disable-default-apps',
+        '--incognito',
+        '--user-data-dir=/tmp/puppeteer_profile',
+      ],
+    });
+
+    // Extract Puppeteer’s temporary profile directory to delete later
+    const chromeSpawnArgs = browser.process().spawnargs;
+    for (const arg of chromeSpawnArgs) {
+      if (arg.startsWith('--user-data-dir=')) {
+        chromeTmpDataDir = arg.replace('--user-data-dir=', '');
+        break;
+      }
+    }
+
+    const page = await browser.newPage();
+    await page.setUserAgent(userAgent);
+
+    logInfo('Verifying Tor connectivity via http://i2p-projekt.i2p');
+    await page.goto('http://i2p-projekt.i2p', { waitUntil: 'domcontentloaded' });
+    const torResultText = await page.$eval('body', (el) => el.innerText);
+    if (torResultText.includes('The Invisible Internet Project')) {
+      logInfo('✔︎ Browser is correctly using the I2p network.');
+    } else {
+      logWarning('⚠︎ I2p check did not confirm usage. Traffic may not be routed through I2p.');
+    }
+    await page.goto("http://identiguy.i2p", { waitUntil: 'networkidle2' });
+
+    // ─── Now navigate to your real target ─────────────────────────────────────
+    
+
+  } catch (error) {
+    logError(`Error running Puppeteer: ${error}`);
+  } finally {
+    if (browser) {
+      await browser.close();
+      logInfo('Browser closed.');
+    }
+    if (chromeTmpDataDir) {
+      fs
+        .remove(chromeTmpDataDir)
+        .then(() => logInfo(`🧹 Deleted temporary user data dir: ${chromeTmpDataDir}`))
+        .catch((err) => logError(`❌ Failed to delete temp user data dir: ${err.message}`));
+    }
+  }
+}
+
+async function waitForI2p() {
+  while (true) {
+    try {
+      const res = await axios.get('http://127.0.0.1:7657/', { timeout: 2000 });
+      if (res.status === 200) {
+        logInfo("I2P router is ready.");
+        break;
+      }
+    } catch (e) {
+      logInfo("Waiting for I2P to become ready...");
+    }
+    await wait(3000);
+  }
+}
+
+
+
 // ─── Main entrypoint: wait for Tor, then launch Puppeteer ─────────────────────
 (async () => {
   try {
@@ -241,9 +329,12 @@ async function runPuppeteer() {
 
     logInfo(JSON.stringify(process.env, null, 2));
     // wait(10000); // Initial 1s delay before starting
-    await waitForTor();      // Block up to 60s for Tor to be ready
-    await renewTorCircuit(); // (Optional) rotate circuit once Tor’s ready
-    await runPuppeteer();    // Then launch Puppeteer through Tor
+    // await waitForTor();      // Block up to 60s for Tor to be ready
+    // await renewTorCircuit(); // (Optional) rotate circuit once Tor’s ready
+    await waitForI2p();      // Block up to 60s for I2P to be ready
+    await runI2pPuppeteer();
+    // await runTorPuppeteer();    // Then launch Puppeteer through Tor
+
   } catch (e) {
     logError(`Fatal error: ${e.message}`);
     process.exit(1);

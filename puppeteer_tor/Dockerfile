@@ -24,6 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+
+# Install nodemon globally
+RUN npm install -g nodemon
+
+
 WORKDIR /app
 COPY ./package*.json ./
 RUN npm install
@@ -33,4 +38,4 @@ COPY . .
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
 
-CMD ["node", "app.js"]
+CMD ["nodemon", "app.js"]
