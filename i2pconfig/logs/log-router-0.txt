@@ -1,0 +1,5 @@
+Jun 15, 2025, 5:18:57 PM INFO  [JobQueue 4/5] networkdb.reseed.ReseedChecker: Downloading peer router information for a new I2P installation
+Jun 15, 2025, 5:18:57 PM INFO  [Addressbook ] .naming.BlockfileNamingService: Migrating 68 hosts from /i2p/.i2p/hosts.txt to new hosts database
+Jun 15, 2025, 5:19:01 PM WARN  [ Establisher] r.transport.ntcp.NTCPTransport: UDP detected external port is 51326 but TCP configured port is 12345
+Jun 15, 2025, 5:19:01 PM ^^^ 1 similar message omitted ^^^
+Jun 15, 2025, 5:19:02 PM WARN  [Tunnels     ] 2ptunnel.TunnelControllerGroup: Migrated tunnel configurations to /i2p/.i2p/i2ptunnel.config.d from /i2p/.i2p/i2ptunnel.config

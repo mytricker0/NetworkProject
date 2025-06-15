@@ -13,8 +13,6 @@ services:
     environment:
       - TZ=Europe/Brussels
 
-    networks:
-      - tornet
 
    
 
@@ -34,8 +32,27 @@ services:
     network_mode: host  # necessary to use host X11 socket
     privileged: true    # needed for Chromium sandboxing
    
+  i2p:
+    image: geti2p/i2p
+    container_name: i2p
+    volumes:
+      - ./i2pconfig:/i2p/.i2p
+    cap_add:
+    - SYS_ADMIN
+    environment:
+      - JVM_XMX=256m                 # optional — adjust Java heap size
+      - TZ=Europe/Brussels
+      - EXT_PORT=12345                  # UDP/TCP port for I2P network reachability
+      - JAVA_OPTS=-Di2p.router.forceShutdown=true \
+                  -Drouter.forceRebuild=true \
+                  -Di2p.router.startupDelay=0 \
+                  -Drouter.disableReseed=false \
+                  -Di2p.reseed.enable=true
+    ports:
+      - "0.0.0.0:7657:7657"           # Router console (web UI)
+      - "0.0.0.0:4444:4444"           # HTTP proxy for eepsites
+      - "12345:12345"                   # I2NP port – for peer connectivity
+      - "12345:12345/udp"               # I2NP also needs UDP open
+    restart: unless-stopped
 
-networks:
-  tornet:
-    driver: bridge
 

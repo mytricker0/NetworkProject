@@ -304,21 +304,39 @@ async function runI2pPuppeteer() {
     }
   }
 }
+async function waitForI2p(interval = 5000) {
+  logInfo('Waiting for I2P proxy to be ready...');
 
-async function waitForI2p() {
+  const host = process.env.I2P_HOST;
+  const port = parseInt(process.env.I2P_PORT, 10);
+
   while (true) {
     try {
-      const res = await axios.get('http://127.0.0.1:7657/', { timeout: 2000 });
-      if (res.status === 200) {
-        logInfo("I2P router is ready.");
-        break;
+      const response = await axios.get('http://i2p-projekt.i2p', {
+        proxy: {
+          host,
+          port,
+          protocol: 'http',
+        },
+        timeout: 5000,
+      });
+      logInfo(`I2P router responded with status ${response.status}. Checking content...`);
+      if (response.data.includes('Invisible Internet Project')) {
+        logInfo('✔︎ I2P proxy is ready and functional.');
+        return true;
+      } else {
+        logWarning('⚠︎ I2P router responded, but did not match expected content.');
       }
-    } catch (e) {
-      logInfo("Waiting for I2P to become ready...");
+    } catch (err) {
+      logInfo('I2P proxy not ready yet, retrying...');
+      logInfo(`Error: ${err.message}`);
     }
-    await wait(3000);
+
+    await wait(interval);
   }
 }
+
+
 
 
 
@@ -330,10 +348,11 @@ async function waitForI2p() {
     logInfo(JSON.stringify(process.env, null, 2));
     // wait(10000); // Initial 1s delay before starting
     // await waitForTor();      // Block up to 60s for Tor to be ready
-    // await renewTorCircuit(); // (Optional) rotate circuit once Tor’s ready
+    // await wait(30000); // wait 30 seconds before starting I2P connectivity check
     await waitForI2p();      // Block up to 60s for I2P to be ready
-    await runI2pPuppeteer();
-    // await runTorPuppeteer();    // Then launch Puppeteer through Tor
+    await renewTorCircuit(); // (Optional) rotate circuit once Tor’s ready
+    runI2pPuppeteer();
+    // runTorPuppeteer();    // Then launch Puppeteer through Tor
 
   } catch (e) {
     logError(`Fatal error: ${e.message}`);
