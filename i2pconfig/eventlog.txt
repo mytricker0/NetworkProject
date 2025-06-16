@@ -2,3 +2,15 @@
 1750000737021 rekeyed cFOPjmPbg-W7LRHXEovtNot6iG789fGYwT7dLpYwznE=
 1750000740551 reseed 177
 1750000741799 changePort IPv4 port 51326
+1750002341955 crashed 25&nbsp;min ago
+1750002341956 started 2.8.2-9-rc
+1750003121074 crashed 64&nbsp;sec ago
+1750003121075 started 2.8.2-9-rc
+1750062086360 crashed 11&nbsp;hours ago
+1750062086362 started 2.8.2-9-rc
+1750068253025 crashed 60&nbsp;sec ago
+1750068253027 started 2.8.2-9-rc
+1750068588468 crashed 60&nbsp;sec ago
+1750068588470 started 2.8.2-9-rc
+1750069090325 crashed 61&nbsp;sec ago
+1750069090326 started 2.8.2-9-rc

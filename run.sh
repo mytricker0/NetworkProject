@@ -9,6 +9,8 @@ if [[ -z "$DISPLAY" || "$DISPLAY" != :* ]]; then
     echo "⚠️  DISPLAY is not set correctly (current value: '$DISPLAY')."
     echo "❌ GUI verification won't work. You're out of luck for now 😕"
     echo "👉 Try running: export DISPLAY=:0 (or the correct display number)"
+    sudo chown -R $USER:$USER i2pconfig
+
     exit 1
 else
     echo "✅ DISPLAY is set to: $DISPLAY"

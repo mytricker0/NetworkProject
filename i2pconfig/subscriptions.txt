@@ -1,0 +1,3 @@
+http://notbob.i2p/hosts.txt
+http://scanner.linuxfarm.i2p/hosts.txt
+http://skank.i2p/hosts.txt

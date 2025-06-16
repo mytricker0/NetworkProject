@@ -26,6 +26,9 @@ function logError(msg) {
 function logWarning(msg) {
   console.log(chalk.yellow(`[WARN] ${new Date().toLocaleTimeString()} - ${msg}`));
 }
+function logResult(msg) {
+  console.log(chalk.blue(`[RESULT] ${new Date().toLocaleTimeString()} --------- ${msg} ---------`));
+}
 
 // 5. UTILITIES
 function wait(ms, signal) {
@@ -166,24 +169,24 @@ async function waitForTor(interval = 5000) {
 }
 
 // ─── Puppeteer routine, only invoked after Tor is confirmed ready ─────────────
-async function runTorPuppeteer() {
+async function runTorPuppeteer(urls) {
   puppeteer.use(StealthPlugin());
-
   const userAgent = randomUseragent.getRandom((ua) => parseFloat(ua.browserVersion) >= 100);
-  logInfo(`Launching browser with User-Agent: ${userAgent}`);
 
+  logInfo(`Launching Tor browser with User-Agent: ${userAgent}`);
   let browser = null;
   let chromeTmpDataDir = null;
+  const loadTimes = [];
 
   try {
     browser = await puppeteer.launch({
       headless: process.env.HEADLESS === 'true',
-      executablePath: '/usr/bin/chromium',   // ensure Dockerfile installed chromium
+      executablePath: '/usr/bin/chromium',
       args: [
         `--proxy-server=socks5://${process.env.TOR_HOST}:${process.env.TOR_PORT}`,
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',           // avoid /dev/shm issues
+        '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-features=WebRTC',
         '--disable-extensions',
@@ -193,7 +196,6 @@ async function runTorPuppeteer() {
       ],
     });
 
-    // Extract Puppeteer’s temporary profile directory to delete later
     const chromeSpawnArgs = browser.process().spawnargs;
     for (const arg of chromeSpawnArgs) {
       if (arg.startsWith('--user-data-dir=')) {
@@ -205,29 +207,41 @@ async function runTorPuppeteer() {
     const page = await browser.newPage();
     await page.setUserAgent(userAgent);
 
-    logInfo('Verifying Tor connectivity via https://check.torproject.org/');
-    await page.goto('https://check.torproject.org/', { waitUntil: 'networkidle2' });
-    const torResultText = await page.$eval('body', (el) => el.innerText);
-    if (torResultText.includes('Congratulations. This browser is configured to use Tor.')) {
-      logInfo('✔︎ Browser is correctly using the Tor network.');
+    for (const url of urls) {
+      logInfo(`Navigating to ${url}`);
+      
+      // Optional: Rotate circuit before each URL
+      // await renewTorCircuit();
+      // await wait(5000);
+
+      const start = performance.now();
+      try {
+        await page.goto(url, { waitUntil: 'networkidle2' });
+        const end = performance.now();
+        const duration = end - start;
+        loadTimes.push(duration);
+        logResult(`✅ Loaded ${url} in ${duration.toFixed(2)} ms`);
+      } catch (err) {
+        logWarning(`❌ Failed to load ${url}: ${err.message}`);
+        loadTimes.push(null);
+      }
+    }
+
+    const successfulLoads = loadTimes.filter(t => t !== null);
+    if (successfulLoads.length > 0) {
+      const average = successfulLoads.reduce((a, b) => a + b, 0) / successfulLoads.length;
+      logResult(`📊 Average Tor load time: ${average.toFixed(2)} ms`);
     } else {
-      logWarning('⚠︎ Tor check did not confirm usage. Traffic may not be routed through Tor.');
+      logWarning("⚠ No successful loads to compute average time.");
     }
-    await page.goto("https://www.google.com", { waitUntil: 'networkidle2' });
-
-    // ─── Now navigate to your real target ─────────────────────────────────────
-    
-
+    await wait (500000); // Wait a bit before closing to ensure all resources are freed
   } catch (error) {
-    logError(`Error running Puppeteer: ${error}`);
+    logError(`Error running Tor Puppeteer: ${error}`);
   } finally {
-    if (browser) {
-      await browser.close();
-      logInfo('Browser closed.');
-    }
+    if (browser) await browser.close();
+    logInfo('Browser closed.');
     if (chromeTmpDataDir) {
-      fs
-        .remove(chromeTmpDataDir)
+      await fs.remove(chromeTmpDataDir)
         .then(() => logInfo(`🧹 Deleted temporary user data dir: ${chromeTmpDataDir}`))
         .catch((err) => logError(`❌ Failed to delete temp user data dir: ${err.message}`));
     }
@@ -236,25 +250,26 @@ async function runTorPuppeteer() {
 
 
 
-async function runI2pPuppeteer() {
+
+async function runI2pPuppeteer(urls) {
   puppeteer.use(StealthPlugin());
-
   const userAgent = randomUseragent.getRandom((ua) => parseFloat(ua.browserVersion) >= 100);
-  logInfo(`Launching browser with User-Agent: ${userAgent}`);
 
+  logInfo(`Launching I2P browser with User-Agent: ${userAgent}`);
   let browser = null;
   let chromeTmpDataDir = null;
+  const loadTimes = [];
 
   try {
     browser = await puppeteer.launch({
       headless: process.env.HEADLESS === 'true',
-      executablePath: '/usr/bin/chromium',   // ensure Dockerfile installed chromium
+      executablePath: '/usr/bin/chromium',
       args: [
         `--proxy-server=http://${process.env.I2P_HOST}:${process.env.I2P_PORT}`,
         '--no-sandbox',
         '--host-resolver-rules=MAP *.i2p ~NOTFOUND, EXCLUDE localhost',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',           // avoid /dev/shm issues
+        '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-features=WebRTC',
         '--disable-extensions',
@@ -264,7 +279,6 @@ async function runI2pPuppeteer() {
       ],
     });
 
-    // Extract Puppeteer’s temporary profile directory to delete later
     const chromeSpawnArgs = browser.process().spawnargs;
     for (const arg of chromeSpawnArgs) {
       if (arg.startsWith('--user-data-dir=')) {
@@ -276,34 +290,41 @@ async function runI2pPuppeteer() {
     const page = await browser.newPage();
     await page.setUserAgent(userAgent);
 
-    logInfo('Verifying Tor connectivity via http://i2p-projekt.i2p');
-    await page.goto('http://i2p-projekt.i2p', { waitUntil: 'domcontentloaded' });
-    const torResultText = await page.$eval('body', (el) => el.innerText);
-    if (torResultText.includes('The Invisible Internet Project')) {
-      logInfo('✔︎ Browser is correctly using the I2p network.');
-    } else {
-      logWarning('⚠︎ I2p check did not confirm usage. Traffic may not be routed through I2p.');
+    for (const url of urls) {
+      logInfo(`Navigating to ${url}`);
+      const start = performance.now();
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        const end = performance.now();
+        const duration = end - start;
+        loadTimes.push(duration);
+        logResult(`✅ Loaded ${url} in ${duration.toFixed(2)} ms`);
+      } catch (err) {
+        logWarning(`❌ Failed to load ${url}: ${err.message}`);
+        loadTimes.push(null);
+      }
     }
-    await page.goto("http://identiguy.i2p", { waitUntil: 'networkidle2' });
 
-    // ─── Now navigate to your real target ─────────────────────────────────────
-    
+    const successfulLoads = loadTimes.filter(t => t !== null);
+    if (successfulLoads.length > 0) {
+      const average = successfulLoads.reduce((a, b) => a + b, 0) / successfulLoads.length;
+      logResult(`📊 Average I2P load time: ${average.toFixed(2)} ms`);
+    } else {
+      logWarning("⚠ No successful loads to compute average time.");
+    }
+    await wait(500000); // Wait a bit before closing to ensure all resources are freed
 
   } catch (error) {
-    logError(`Error running Puppeteer: ${error}`);
+    logError(`Error running I2P Puppeteer: ${error}`);
   } finally {
-    if (browser) {
-      await browser.close();
-      logInfo('Browser closed.');
-    }
+    if (browser) await browser.close();
     if (chromeTmpDataDir) {
-      fs
-        .remove(chromeTmpDataDir)
-        .then(() => logInfo(`🧹 Deleted temporary user data dir: ${chromeTmpDataDir}`))
-        .catch((err) => logError(`❌ Failed to delete temp user data dir: ${err.message}`));
+      await fs.remove(chromeTmpDataDir).catch((err) => logError(`Failed to delete temp dir: ${err.message}`));
     }
   }
 }
+
+
 async function waitForI2p(interval = 5000) {
   logInfo('Waiting for I2P proxy to be ready...');
 
@@ -343,16 +364,44 @@ async function waitForI2p(interval = 5000) {
 // ─── Main entrypoint: wait for Tor, then launch Puppeteer ─────────────────────
 (async () => {
   try {
-    // log the process.env
-
     logInfo(JSON.stringify(process.env, null, 2));
-    // wait(10000); // Initial 1s delay before starting
-    // await waitForTor();      // Block up to 60s for Tor to be ready
-    // await wait(30000); // wait 30 seconds before starting I2P connectivity check
-    await waitForI2p();      // Block up to 60s for I2P to be ready
-    await renewTorCircuit(); // (Optional) rotate circuit once Tor’s ready
-    runI2pPuppeteer();
-    // runTorPuppeteer();    // Then launch Puppeteer through Tor
+
+    const torUrls = [
+  'http://dreadytofatroptsdj6io7l3xptbet6onoyno2yv7jicoxknyazubrad.onion',
+  'http://4pt4axjgzmm4ibmxplfiuvopxzf775e5bqseyllafcecryfthdupjwyd.onion',
+  'http://exploitivzcm5dawzhe6c32bbylyggbjvh5dyvsvb5lkuz5ptmunkmqd.onion',
+  'http://uicrmrl3i4r66c4fx4l5gv5hdb6jrzy72bitrk25w5dhv5o6sxmajxqd.onion',
+  'https://www.bbcnewsd73hkzno2ini43t4gblxvycyac5aw4gnv7t2rccijh7745uqd.onion',
+  'https://protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion',
+  'http://torbox36ijlcevujx7mjb4oiusvwgvmue7jfn2cvutwa6kl6to3uyqad.onion',
+  'https://facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd.onion',
+  'http://darkfailenbsdla5mal2mxn2uz66od5vtzd5qozslagrfzachha3f3id.onion',
+  'http://tortimeswqlzti2aqbjoieisne4ubyuoeiiugel2layyudcfrwln76qd.onion/'
+];
+
+
+    const i2pUrls = [
+  'http://i2p-projekt.i2p',                         // 1 - I2P project
+  'http://identiguy.i2p',                           // 2 - IP tester
+  "http://1337s.i2p//",
+  'http://amogus.i2p/',                              // 4 - host lookup
+  'http://i2pforum.i2p',                            // 5 - community forum
+  'http://i2pgames.i2p/',                           // 6 - eepStatus
+  'http://legwork.i2p',                             // 7 - directories
+  'http://stats.i2p',                               // 8 - network stats
+  'http://planet.i2p',                              // 9 - dev blog
+  'http://humanrightswatch.i2p/',                        // 10 - *fictitious* fallback
+  'http://notbob.i2p',                              // 3 - search engine
+];
+
+
+
+    await waitForTor();
+    await renewTorCircuit();
+    runTorPuppeteer(torUrls);
+
+    await waitForI2p();
+    await runI2pPuppeteer(i2pUrls);
 
   } catch (e) {
     logError(`Fatal error: ${e.message}`);
