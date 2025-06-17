@@ -36,7 +36,8 @@ services:
     image: geti2p/i2p
     container_name: i2p
     volumes:
-      - ./i2pconfig:/i2p/.i2p
+      - i2p-data:/i2p/.i2p
+      # - ./i2pconfig:/i2p/.i2p
     cap_add:
     - SYS_ADMIN
     environment:
@@ -55,4 +56,18 @@ services:
       - "12345:12345/udp"               # I2NP also needs UDP open
     restart: unless-stopped
 
+  i2p_configurator:
+    build:
+      context: ./puppeteer_tor
+    depends_on:
+      - i2p
+    working_dir: /app
+    command: ["node", "init-i2p-subscriptions.js"]
+    volumes:
+      - i2p-data:/i2p/.i2p
+    restart: "no"
 
+
+volumes:
+  i2p-data:
+    

@@ -1,2 +1,0 @@
-Jun 16, 2025, 12:18:10 PM WARN  [Addressbook ] .naming.BlockfileNamingService: The hosts database was not closed cleanly or is still open by another process
-Jun 16, 2025, 12:18:10 PM WARN  [webConsole  ] .i2p.router.update.NewsFetcher: Cannot update to version 2.9.0: In-network updates disabled. Check package manager.

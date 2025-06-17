@@ -290,6 +290,19 @@ async function runI2pPuppeteer(urls) {
     const page = await browser.newPage();
     await page.setUserAgent(userAgent);
 
+    await page.goto('http://localhost:7657/dns', { waitUntil: 'networkidle2' });
+    await page.evaluate(() => {
+      fetch('/dns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'action=Reload'
+      });
+    });
+    console.log("✅ Triggered addressbook reload via POST.");
+
+
     for (const url of urls) {
       logInfo(`Navigating to ${url}`);
       const start = performance.now();
