@@ -221,6 +221,7 @@ async function runTorPuppeteer(urls) {
         const duration = end - start;
         loadTimes.push(duration);
         logResult(`✅ Loaded ${url} in ${duration.toFixed(2)} ms`);
+        await wait(5000); // Wait a bit to ensure page is fully loaded
       } catch (err) {
         logWarning(`❌ Failed to load ${url}: ${err.message}`);
         loadTimes.push(null);
@@ -290,17 +291,56 @@ async function runI2pPuppeteer(urls) {
     const page = await browser.newPage();
     await page.setUserAgent(userAgent);
 
-    await page.goto('http://localhost:7657/dns', { waitUntil: 'networkidle2' });
-    await page.evaluate(() => {
-      fetch('/dns', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'action=Reload'
-      });
+    // ─── Reload I2P Subscriptions via HTTP POST ─────────────────────────────
+try {
+  const http = require('http');
+
+  const subscriptions = [
+    'http://i2p-projekt.i2p/hosts.txt',
+    'http://notbob.i2p/hosts.txt',
+    'http://scanner.linuxfarm.i2p/hosts.txt',
+    'http://skank.i2p/hosts.txt',
+  ];
+
+  const postData = [
+    `serial=${Date.now()}`,
+    `content=${encodeURIComponent(subscriptions.join('\n'))}`,
+    `action=Reload`
+  ].join('&');
+
+  const options = {
+    hostname: 'localhost',
+    port: 7657,
+    path: '/susidns/subscriptions',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(postData),
+    },
+  };
+
+  const req = http.request(options, (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => {
+      logInfo(`📡 I2P subscriptions reloaded (status ${res.statusCode})`);
+      if (data.includes('Subscription')) {
+        logInfo('🗂 Subscriptions page returned successfully');
+      } else {
+        logWarning('⚠ Subscriptions POST may not have been accepted');
+      }
     });
-    console.log("✅ Triggered addressbook reload via POST.");
+  });
+
+  req.on('error', (err) => {
+    logError(`❌ Failed to POST subscriptions: ${err.message}`);
+  });
+
+  req.write(postData);
+  req.end();
+} catch (err) {
+  logError(`❌ Exception during I2P reload POST: ${err.message}`);
+}
 
 
     for (const url of urls) {
@@ -312,6 +352,7 @@ async function runI2pPuppeteer(urls) {
         const duration = end - start;
         loadTimes.push(duration);
         logResult(`✅ Loaded ${url} in ${duration.toFixed(2)} ms`);
+        await wait(5000); // Wait a bit to ensure page is fully loaded
       } catch (err) {
         logWarning(`❌ Failed to load ${url}: ${err.message}`);
         loadTimes.push(null);

@@ -12,7 +12,7 @@ const subscriptions = [
 ];
 
 // Wait until file exists
-function waitForFile(file, timeout = 90000) {
+function waitForFile(file, timeout = 900000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const interval = setInterval(() => {
