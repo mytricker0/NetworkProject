@@ -435,18 +435,18 @@ async function waitForI2p(interval = 5000) {
 
 
     const i2pUrls = [
-  'http://i2p-projekt.i2p',                         // 1 - I2P project
-  'http://identiguy.i2p',                           // 2 - IP tester
-  "http://1337s.i2p//",
-  'http://amogus.i2p/',                              // 4 - host lookup
-  'http://i2pforum.i2p',                            // 5 - community forum
-  'http://i2pgames.i2p/',                           // 6 - eepStatus
-  'http://legwork.i2p',                             // 7 - directories
-  'http://stats.i2p',                               // 8 - network stats
-  'http://planet.i2p',                              // 9 - dev blog
-  'http://humanrightswatch.i2p/',                        // 10 - *fictitious* fallback
-  'http://notbob.i2p',                              // 3 - search engine
-];
+  'http://i2p-projekt.i2p',                        
+  'http://identiguy.i2p',                           
+  "http://paste.idk.i2p/",
+  'http://bandura.i2p/',                              
+  'http://i2pforum.i2p',                            
+  'http://purokishi.i2p/',                         
+  'http://stormycloud.i2p/',                             
+  'http://stats.i2p',                            
+  'http://r4sas.i2p/',                             
+  'http://notbob.i2p',                             
+  'http://opentracker.simp.i2p/',     
+    ]                 
 
 
 
